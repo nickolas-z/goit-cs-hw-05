@@ -63,6 +63,9 @@ def shuffle_function(mapped_results) -> dict:
     try:
         for part in mapped_results:
             for word, count in part:
+                # Sum up the counts for each word insted of storing a 
+                # list of counts for each word is a better approach in my opinion
+                # since it reduces the memory usage and makes the reduce phase
                 shuffled[word] += count
         return shuffled
     except Exception as e:
@@ -102,11 +105,15 @@ def parallel_map_reduce(words, num_workers=4) -> dict:
             # Map phase
             map_results = list(executor.map(mapper, chunks))
 
-        # Shuffle phase
-        shuffled = shuffle_function(map_results)
+        # In this case, we can use a single thread for the shuffle and reduce phases
+        # since the data is already split into chunks and the shuffle phase is 
+        # not computationally intensive
+        with ThreadPoolExecutor(max_workers=num_workers) as executor:
+            # Shuffle phase
+            shuffled = shuffle_function(map_results)
 
-        # Reduce phase
-        final_result = reducer(shuffled)
+            # Reduce phase
+            final_result = list(executor.map(reducer, [shuffled]))[0]
 
         return final_result
     except Exception as e:
