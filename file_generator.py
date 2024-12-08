@@ -167,7 +167,8 @@ async def generate_random_files(path: Path) -> None:
     """
     count = randint(5, 7)
     tasks = []
-    function_list = [generate_text_files, generate_archive_files, generate_image]
+    function_list = [generate_text_files,
+                     generate_archive_files, generate_image]
     for _ in range(3, count):
         tasks.append(choice(function_list)(path))
 
@@ -249,7 +250,8 @@ async def main() -> None:
 
     # Перевірка існування теки
     if parent_folder_path.exists():
-        logger.error(f"Directory {parent_folder_path} already exists. Exiting.")
+        logger.error(
+            f"Directory {parent_folder_path} already exists. Exiting.")
         return
 
     # Створюємо батьківську теку, якщо її немає
