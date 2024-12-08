@@ -13,9 +13,8 @@ from PIL import Image
 MESSAGE = "Hello, Привіт"
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
-# Глобальний прапорець для відслідковування чи програма вже отримала Ctrl+C
+# Global flag to track if the program has already received Ctrl+C
 interrupted = False
 
 
@@ -27,7 +26,7 @@ def handle_sigint(signum, frame):
     sys.exit(0)
 
 
-# Реєструємо обробник сигналу Ctrl+C
+# Register the signal handler for Ctrl+C
 signal.signal(signal.SIGINT, handle_sigint)
 
 
@@ -42,16 +41,19 @@ async def get_random_filename() -> str:
         str: A randomly generated filename (without extension).
     """
     random_value = (
-        "()+,-0123456789;=@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz"
+        "()+,-0123456789;=@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]"
+        "^_`abcdefghijklmnopqrstuvwxyz"
         "{}~абвгдеєжзиіїйклмнопрстуфхцчшщьюяАБВГДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯ"
     )
-    return "".join(choices(random_value, k=8))
+    filename = "".join(choices(random_value, k=8))
+    logger.debug(f"Generated random filename: {filename}")
+    return filename
 
 
 async def generate_text_files(path: Path) -> None:
     """
-    Generate a text-like file with a random filename and a random document extension,
-    and write a predefined message into it.
+    Generate a text-like file with a random filename and a random
+    document extension, and write a predefined message into it.
 
     Args:
         path (Path): The directory in which to create the file.
@@ -62,13 +64,15 @@ async def generate_text_files(path: Path) -> None:
     documents = ("DOC", "DOCX", "TXT", "PDF", "XLSX", "PPTX")
     filename = await get_random_filename()
     file_path = path / f"{filename}.{choice(documents).lower()}"
+    logger.info(f"Generating text file: {file_path}")
 
     await asyncio.to_thread(file_path.write_bytes, MESSAGE.encode())
 
 
 async def generate_archive_files(path: Path) -> None:
     """
-    Generate an archive file (zip, gztar, tar) with a random name in the given directory.
+    Generate an archive file (zip, gztar, tar) with a random name in
+    the given directory.
 
     Args:
         path (Path): The directory where the archive should be created.
@@ -79,6 +83,7 @@ async def generate_archive_files(path: Path) -> None:
     archive = ("ZIP", "GZTAR", "TAR")
     filename = await get_random_filename()
     archive_name = path / filename
+    logger.info(f"Generating archive file: {archive_name}")
 
     await asyncio.to_thread(
         shutil.make_archive,
@@ -90,7 +95,8 @@ async def generate_archive_files(path: Path) -> None:
 
 async def generate_image(path: Path) -> None:
     """
-    Generate a random image (JPEG, PNG, JPG) and save it in the given directory.
+    Generate a random image (JPEG, PNG, JPG)
+    and save it in the given directory.
 
     Args:
         path (Path): The directory to store the generated image.
@@ -101,6 +107,7 @@ async def generate_image(path: Path) -> None:
     images = ("JPEG", "PNG", "JPG")
     filename = await get_random_filename()
     image_file_path = path / f"{filename}.{choice(images).lower()}"
+    logger.info(f"Generating image file: {image_file_path}")
 
     image_array = numpy.random.rand(100, 100, 3) * 255
     image = Image.fromarray(image_array.astype("uint8"))
@@ -133,6 +140,7 @@ async def generate_folders(path: Path) -> None:
         k=randint(5, len(folder_name)),
     )
     folder_path = Path(path, *chosen_folders)
+    logger.info(f"Generating folders: {folder_path}")
 
     await asyncio.to_thread(folder_path.mkdir, parents=True, exist_ok=True)
 
@@ -142,7 +150,8 @@ async def generate_folder_forest(path: Path) -> None:
     Generate several nested folder structures under the given path.
 
     Args:
-        path (Path): The base directory under which nested folder forests will be created.
+        path (Path): The base directory under which nested folder
+            forests will be created.
 
     Returns:
         None
@@ -152,12 +161,14 @@ async def generate_folder_forest(path: Path) -> None:
         tasks.append(generate_folders(path))
 
     if tasks:
+        logger.info(f"Generating folder forest in: {path}")
         await asyncio.gather(*tasks)
 
 
 async def generate_random_files(path: Path) -> None:
     """
-    Generate a random number of files (text, archive, image) in the given directory.
+    Generate a random number of files (text, archive, image) in
+    the given directory.
 
     Args:
         path (Path): The directory in which random files will be created.
@@ -167,22 +178,29 @@ async def generate_random_files(path: Path) -> None:
     """
     count = randint(5, 7)
     tasks = []
-    function_list = [generate_text_files, generate_archive_files, generate_image]
+    function_list = [
+        generate_text_files,
+        generate_archive_files,
+        generate_image,
+    ]
     for _ in range(3, count):
         tasks.append(choice(function_list)(path))
 
     if tasks:
+        logger.info(f"Generating random files in: {path}")
         await asyncio.gather(*tasks)
 
 
 async def parse_folder_recursion(path: Path, visited: set[Path]) -> None:
     """
-    Recursively traverse directories under the given path and generate random files in them,
-    preventing infinite recursion by tracking visited directories via absolute paths.
+    Recursively traverse directories under the given path and generate random
+    files in them, preventing infinite recursion by tracking visited
+    directories via absolute paths.
 
     Args:
         path (Path): The directory from which to start the recursive traversal.
-        visited (set[Path]): A set of already visited directories to avoid infinite loops.
+        visited (set[Path]): A set of already visited directories to avoid
+            infinite loops.
 
     Returns:
         None
@@ -205,21 +223,22 @@ async def parse_folder_recursion(path: Path, visited: set[Path]) -> None:
             tasks.append(parse_folder_recursion(element, visited))
 
     if tasks:
+        logger.info(f"Parsing folder recursion in: {real_path}")
         await asyncio.gather(*tasks)
 
 
 async def file_generator(path: Path) -> None:
     """
-    Generate a random folder structure and files within the given parent directory.
+    Generate a random folder structure and files within the given
+    parent directory.
 
     Args:
-        path (Path): The parent directory in which to generate files and folders.
+        path (Path): The parent directory in which to generate files
+            and folders.
 
     Returns:
         None
     """
-    # Тут ми більше не створюємо теки, якщо вона вже існує,
-    # оскільки це перевіримо перед викликом file_generator.
     await generate_folder_forest(path)
     visited = set()
     await parse_folder_recursion(path, visited)
@@ -227,8 +246,9 @@ async def file_generator(path: Path) -> None:
 
 async def main() -> None:
     """
-    Main asynchronous entry point of the script. Parses command-line arguments to determine the path
-    for file generation and then invokes the generation process.
+    Main asynchronous entry point of the script. Parses command-line arguments
+    to determine the path for file generation and then invokes the generation
+    process.
 
     Args:
         None
@@ -241,19 +261,37 @@ async def main() -> None:
     )
     parser.add_argument(
         "target_dir",
-        help="Path to the target directory where random files and folders will be generated.",
+        help="Path to the target directory for random files and folders.",
     )
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Set the logging level (default: INFO).",
+    )
+
     args = parser.parse_args()
+
+    # Set logging level based on argument
+    logging.basicConfig(
+        level=args.log_level,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.StreamHandler(sys.stdout)
+        ],
+    )
 
     parent_folder_path = Path(args.target_dir).resolve()
 
-    # Перевірка існування теки
     if parent_folder_path.exists():
-        logger.error(f"Directory {parent_folder_path} already exists. Exiting.")
+        logger.error(
+            f"Directory {parent_folder_path} already exists. Exiting."
+        )
         return
 
-    # Створюємо батьківську теку, якщо її немає
-    await asyncio.to_thread(parent_folder_path.mkdir, parents=True, exist_ok=True)
+    await asyncio.to_thread(
+        parent_folder_path.mkdir, parents=True, exist_ok=True
+    )
 
     logger.info(f"Starting file generation in {parent_folder_path}")
     await file_generator(parent_folder_path)
